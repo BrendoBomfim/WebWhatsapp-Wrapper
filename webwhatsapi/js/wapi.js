@@ -91,6 +91,8 @@ window.WAPI._serializeMessageObj = (obj) => {
 if (window.Store === undefined) {
     webpackJsonp([], {"bcihgfbdeb": (x, y, z) => window.Store = z('"bcihgfbdeb"')}, "bcihgfbdeb");
     webpackJsonp([], {"iaeeehaci": (x, y, z) => window.Store.Wap = z('"iaeeehaci"')}, "iaeeehaci");
+    webpackJsonp([], {"jfefjijii": (x, y, z) => window.Store.Conn = z('"jfefjijii"')}, "jfefjijii");
+    window.Store.Conn = window.Store.Conn.default;
 }
 
 
@@ -148,6 +150,14 @@ window.WAPI.getMsgsModel = function (done) {
             return ([]);
         }
     }
+};
+
+window.WAPI.createGroup = function (name, contactsId) {
+    if (!Array.isArray(contactsId)) {
+        contactsId = [contactsId];
+    }
+    Store.Wap.setSubProtocol(10);
+    return window.Store.Wap.createGroup(name, contactsId);
 };
 
 window.WAPI.getAllContacts = function (done) {
@@ -646,14 +656,18 @@ window.WAPI.getAllMessageIdsInChat = function (id, includeMe, includeNotificatio
 };
 
 window.WAPI.getMessageById = function (id, done) {
-    if (done !== undefined) {
-        try {
-            window.WAPI.getMsgsModel().find(id).then((item) => done(WAPI.processMessageObj(item, true, true)))
-        } catch (err) {
-            done(false);
+    let result = false;
+    try {
+        let msg = window.WAPI.getMsgsModel().find((item) => item.id._serialized === id);
+        if (msg) {
+            result = WAPI.processMessageObj(msg, true, true);
         }
+    } catch (err) { }
+
+    if (done !== undefined) {
+        done(result);
     } else {
-        return WAPI.processMessageObj(window.WAPI.getMsgsModel().find(id), true, true);
+        return result;
     }
 };
 
@@ -964,6 +978,7 @@ window.WAPI.getCommonGroups = async function (id, done) {
 window.WAPI.downloadFile = function (url, done) {
     let xhr = new XMLHttpRequest();
 
+
     xhr.onload = function () {
         if (xhr.readyState == 4) {
             if (xhr.status == 200) {
@@ -975,8 +990,12 @@ window.WAPI.downloadFile = function (url, done) {
             } else {
                 console.error(xhr.statusText);
             }
+        } else {
+            console.log(err);
+            done(false);
         }
     };
+
     xhr.open("GET", url, true);
     xhr.responseType = 'blob';
     xhr.send(null);
