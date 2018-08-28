@@ -14,7 +14,7 @@ if (!window.Store) {
             let neededObjects = [
                 { id: "Store", conditions: (module) => (module.Chat && module.Msg) ? module : null },
                 { id: "Wap", conditions: (module) => (module.createGroup) ? module : null },
-                {id: "MediaCollection", conditions: (module) => (module.default && module.default.prototype && module.default.prototype.processFiles !== undefined) ? module.default : null},
+                { id: "MediaCollection", conditions: (module) => (module.default && module.default.prototype && module.default.prototype.processFiles !== undefined) ? module.default : null },
                 { id: "WapDelete", conditions: (module) => (module.sendConversationDelete && module.sendConversationDelete.length == 2) ? module : null },
                 { id: "Conn", conditions: (module) => (module.default && module.default.ref && module.default.refTTL) ? module.default : null },
                 { id: "WapQuery", conditions: (module) => (module.queryExist) ? module : null },
@@ -124,6 +124,7 @@ window.WAPI._serializeMessageObj = (obj) => {
 
     return Object.assign(window.WAPI._serializeRawObj(obj), {
         id: obj.id._serialized,
+        cid: obj['cid'],
         sender: obj["senderObj"] ? WAPI._serializeContactObj(obj["senderObj"]) : null,
         timestamp: obj["t"],
         content: obj["body"],
@@ -256,12 +257,12 @@ window.WAPI.getAllChatsWithNewMsg = function (done) {
  * @returns {Array|*} List of chat id's
  */
 window.WAPI.getAllChatIds = function (done) {
-    const chatIds = window.Store.Chat.map((chat) => chat.id);
+    const chatIds = window.Store.Chat.map((chat) => chat.id._serialized || chat.id);
 
     if (done !== undefined) {
         done(chatIds);
     } else {
-        return chats;
+        return chatIds;
     }
 };
 
@@ -360,7 +361,6 @@ window.WAPI.getNewId = function () {
         text += possible.charAt(Math.floor(Math.random() * possible.length));
     return text;
 };
-
 
 window.WAPI.getChatById = function (id, done) {
     let found = window.WAPI.getChat(id);
@@ -466,7 +466,6 @@ window.WAPI.loadEarlierMessages = function (id, done) {
  * @param done Optional callback function for async execution
  * @returns None
  */
-
 window.WAPI.loadAllEarlierMessages = function (id, done) {
     const found = window.Store.Chat.get(id);
     x = function () {
@@ -616,6 +615,17 @@ window.WAPI.getMe = function (done) {
         return rawMe.all;
     }
     return rawMe.all;
+};
+
+window.WAPI.isLoggedIn = function (done) {
+    // Contact always exists when logged in
+    const isLogged = window.Store.Contact && window.Store.Contact.checksum !== undefined;
+
+    if (done !== undefined) {
+        done(isLogged);
+    }
+
+    return isLogged;
 };
 
 window.WAPI.processMessageObj = function (messageObj, includeMe, includeNotifications) {
@@ -927,32 +937,32 @@ window.WAPI.getUnreadMessages = function (includeMe, includeNotifications, use_u
         if (messageGroup.messages.length > 0) {
             output.push(messageGroup);
         } else { // no messages with isNewMsg true
-           if (use_unread_count) {
-               let n = messageGroupObj.unreadCount; // will use unreadCount attribute to fetch last n messages from sender
-               for (let i = messages.length - 1; i >= 0; i--) {
-                   let messageObj = messages[i];
-                   if (n > 0) {
-                       if (!messageObj.isSentByMe) {
-                           let message = WAPI.processMessageObj(messageObj, includeMe, includeNotifications);
-                           messageGroup.messages.unshift(message);
-                           n -= 1;
-                       }
-                   } else if (n === -1) { // chat was marked as unread so will fetch last message as unread
-                       if (!messageObj.isSentByMe) {
-                           let message = WAPI.processMessageObj(messageObj, includeMe, includeNotifications);
-                           messageGroup.messages.unshift(message);
-                           break;
-                       }
-                   } else { // unreadCount = 0
-                       break;
-                   }
-               }
-               if (messageGroup.messages.length > 0) {
-                   messageGroupObj.unreadCount = 0; // reset unread counter
-                   output.push(messageGroup);
-               }
-           }
-         }
+            if (use_unread_count) {
+                let n = messageGroupObj.unreadCount; // will use unreadCount attribute to fetch last n messages from sender
+                for (let i = messages.length - 1; i >= 0; i--) {
+                    let messageObj = messages[i];
+                    if (n > 0) {
+                        if (!messageObj.isSentByMe) {
+                            let message = WAPI.processMessageObj(messageObj, includeMe, includeNotifications);
+                            messageGroup.messages.unshift(message);
+                            n -= 1;
+                        }
+                    } else if (n === -1) { // chat was marked as unread so will fetch last message as unread
+                        if (!messageObj.isSentByMe) {
+                            let message = WAPI.processMessageObj(messageObj, includeMe, includeNotifications);
+                            messageGroup.messages.unshift(message);
+                            break;
+                        }
+                    } else { // unreadCount = 0
+                        break;
+                    }
+                }
+                if (messageGroup.messages.length > 0) {
+                    messageGroupObj.unreadCount = 0; // reset unread counter
+                    output.push(messageGroup);
+                }
+            }
+        }
     }
     if (done !== undefined) {
         done(output);
@@ -1122,7 +1132,7 @@ window.WAPI.checkNumberStatus = function(id, done) {
  * New messages observable functions.
  */
 window.WAPI._newMessagesQueue = [];
-window.WAPI._newMessagesBuffer = (sessionStorage.getItem('saved_msgs') != null) ? 
+window.WAPI._newMessagesBuffer = (sessionStorage.getItem('saved_msgs') != null) ?
     JSON.parse(sessionStorage.getItem('saved_msgs')) : [];
 window.WAPI._newMessagesDebouncer = null;
 window.WAPI._newMessagesCallbacks = [];
@@ -1171,7 +1181,7 @@ window.WAPI._unloadInform = (event) => {
         Object.keys(message).forEach(key => message[key] === undefined ? delete message[key] : '');
     });
     sessionStorage.setItem("saved_msgs", JSON.stringify(window.WAPI._newMessagesBuffer));
-    
+
     // Inform callbacks that the page will be reloaded.
     window.WAPI._newMessagesCallbacks.forEach(function(callbackObj) {
         if(callbackObj.callback !== undefined) {
@@ -1237,7 +1247,7 @@ window.WAPI.base64ImageToFile = function (b64Data, filename) {
 
 /**
  * Send contact card to a specific chat using the chat ids
- * 
+ *
  * @param {string} to '000000000000@c.us'
  * @param {string|array} contact '111111111111@c.us' | ['222222222222@c.us', '333333333333@c.us, ... 'nnnnnnnnnnnn@c.us']
  */
@@ -1258,7 +1268,7 @@ window.WAPI.sendContact = function(to, contact) {
 
 /**
  * Create an chat ID based in a cloned one
- * 
+ *
  * @param {string} chatId '000000000000@c.us'
  */
 window.WAPI.getNewMessageId = function(chatId) {
@@ -1274,13 +1284,13 @@ window.WAPI.getNewMessageId = function(chatId) {
 
 /**
  * Send Customized VCard without the necessity of contact be a Whatsapp Contact
- * 
+ *
  * @param {string} chatId '000000000000@c.us'
  * @param {object|array} vcard { displayName: 'Contact Name', vcard: 'BEGIN:VCARD\nVERSION:3.0\nN:;Contact Name;;;\nEND:VCARD' } | [{ displayName: 'Contact Name 1', vcard: 'BEGIN:VCARD\nVERSION:3.0\nN:;Contact Name 1;;;\nEND:VCARD' }, { displayName: 'Contact Name 2', vcard: 'BEGIN:VCARD\nVERSION:3.0\nN:;Contact Name 2;;;\nEND:VCARD' }]
  */
 window.WAPI.sendVCard = function(chatId, vcard) {
     var chat = Store.Chat.get(chatId);
-    var tempMsg = Object.create(Store.Msg.models[0]);
+    var tempMsg = Object.create(Store.Msg.models.filter(msg => msg.__x_isSentByMe)[0]);
     var newId = window.WAPI.getNewMessageId(chatId);
 
     var extend = {
