@@ -6,3 +6,6 @@ cryptography
 typing
 numpy
 python-magic
+requests
+pycpfcnpj
+psycopg2-binary
