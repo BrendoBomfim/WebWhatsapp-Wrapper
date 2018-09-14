@@ -1,5 +1,6 @@
 import mimetypes
 from base64 import b64decode
+from base64 import b64encode
 from datetime import datetime
 
 import os
@@ -96,6 +97,13 @@ class MediaMessage(Message):
 
         extension = mimetypes.guess_extension(self.mime)
         self.filename = ''.join([str(id(self)), extension or ''])
+
+    def get_media(self):
+        # gets the media in base64
+        ioobj = self.driver.download_media(self, True)
+        if ('.bat' in self.filename):
+            self.filename = self.filename.split('.')[0] + '.txt'
+        return b64encode(ioobj.getvalue()).decode() 
 
     def save_media(self, path, force_download=False):
         # gets full media
