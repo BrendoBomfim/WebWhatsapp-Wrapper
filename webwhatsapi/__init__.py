@@ -631,6 +631,9 @@ class WhatsAPIDriver(object):
     def download_file(self, url):
         return b64decode(self.wapi_functions.downloadFile(url))
 
+    def download_raw(self, url):
+        return self.wapi_functions.downloadFile(url)
+
     def download_file_with_credentials(self, url):
         return b64decode(self.wapi_functions.downloadFileWithCredentials(url))
 
