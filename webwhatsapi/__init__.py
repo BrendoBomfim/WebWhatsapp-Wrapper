@@ -150,7 +150,8 @@ class WhatsAPIDriver(object):
         self.driver.close()
 
     def __init__(self, client="firefox", username="API", proxy=None, command_executor=None, loadstyles=False,
-                 profile=None, headless=False, autoconnect=True, logger=None, extra_params=None, chrome_options=None):
+                 profile=None, headless=False, autoconnect=True, logger=None, extra_params=None, chrome_options=None, 
+                 executable_path=None):
         """Initialises the webdriver"""
 
         self.logger = logger or self.logger
@@ -193,16 +194,30 @@ class WhatsAPIDriver(object):
             capabilities['webStorageEnabled'] = True
 
             self.logger.info("Starting webdriver")
-            self.driver = webdriver.Firefox(capabilities=capabilities, options=options, **extra_params)
+            if executable_path is not None:
+                executable_path = os.path.abspath(executable_path)                                
+
+                self.logger.info("Starting webdriver")
+                self.driver = webdriver.Firefox(capabilities=capabilities, options=options, executable_path=executable_path,
+                                                    **extra_params)
+            else: 
+                self.logger.info("Starting webdriver")
+                self.driver = webdriver.Firefox(capabilities=capabilities, options=options,
+                                                    **extra_params)
+
 
         elif self.client == "chrome":
-            self._profile = webdriver.chrome.options.Options()
+            self._profile = webdriver.ChromeOptions()
             if self._profile_path is not None:
                 self._profile.add_argument("user-data-dir=%s" % self._profile_path)
             if proxy is not None:
-                profile.add_argument('--proxy-server=%s' % proxy)
-            for option in chrome_options:
-                self._profile.add_argument(option)
+                self._profile.add_argument('--proxy-server=%s' % proxy)
+            if headless:
+                self._profile.add_argument('headless')
+            if chrome_options is not None:
+                for option in chrome_options:
+                    self._profile.add_argument(option)
+            self.logger.info("Starting webdriver")
             self.driver = webdriver.Chrome(chrome_options=self._profile, **extra_params)
 
         elif client == 'remote':
@@ -230,8 +245,14 @@ class WhatsAPIDriver(object):
 
     def connect(self):
         self.driver.get(self._URL)
-
-        local_storage_file = os.path.join(self._profile.path, self._LOCAL_STORAGE_FILE)
+        
+        profilePath = ""
+        if self.client == "chrome":
+            profilePath = ""
+        else:
+            profilePath = self._profile.path
+        
+        local_storage_file = os.path.join(profilePath, self._LOCAL_STORAGE_FILE)
         if os.path.exists(local_storage_file):
             with open(local_storage_file) as f:
                 self.set_local_storage(loads(f.read()))
@@ -599,7 +620,7 @@ class WhatsAPIDriver(object):
         participant_ids = self.group_get_participants_ids(group_id)
 
         for participant_id in participant_ids:
-            yield self.get_contact_from_id(participant_id)
+            yield self.get_contact_from_id(participant_id['_serialized'])
 
     def group_get_admin_ids(self, group_id):
         return self.wapi_functions.getGroupAdmins(group_id)
@@ -613,20 +634,32 @@ class WhatsAPIDriver(object):
     def get_profile_pic_from_id(self, id):
         """
         Get full profile pic from an id
+        The ID must be on your contact book to
+        successfully get their profile picture.
 
         :param id: ID
         :type id: str
         """
-        return b64decode(self.wapi_functions.getProfilePicFromId(id))
+        profile_pic = self.wapi_functions.getProfilePicFromId(id)
+        if profile_pic:
+            return b64decode(profile_pic)
+        else:
+            return False
 
     def get_profile_pic_small_from_id(self, id):
         """
         Get small profile pic from an id
+        The ID must be on your contact book to
+        successfully get their profile picture.
 
         :param id: ID
         :type id: str
         """
-        return b64decode(self.wapi_functions.getProfilePicSmallFromId(id))
+        profile_pic_small = self.wapi_functions.getProfilePicSmallFromId(id)
+        if profile_pic:
+            return b64decode(profile_pic_small)
+        else:
+            return False
 
     def download_file(self, url):
         return b64decode(self.wapi_functions.downloadFile(url))
@@ -696,6 +729,17 @@ class WhatsAPIDriver(object):
         :return:
         """
         return self.wapi_functions.deleteConversation(chat_id)
+    
+    def delete_message(self, chat_id, message_array, revoke=False):
+        """
+        Delete a chat
+
+        :param chat_id: id of chat
+        :param message_array: one or more message(s) id
+        :param revoke: Set to true so the message will be deleted for everyone, not only you
+        :return:
+        """
+        return self.wapi_functions.deleteMessage(chat_id, message_array, revoke=False)
 
     def check_number_status(self, number_id):
         """
@@ -714,6 +758,7 @@ class WhatsAPIDriver(object):
         self.wapi_functions.new_messages_observable.unsubscribe(observer)
 
     def quit(self):
+        self.wapi_functions.quit()
         self.driver.quit()
 
     def create_chat_by_number(self, number):
@@ -728,3 +773,10 @@ class WhatsAPIDriver(object):
 
     def remove_participant_group(self, idGroup, idParticipant):
         return self.wapi_functions.removeParticipantGroup(idGroup,idParticipant)
+
+    def promove_participant_admin_group(self, idGroup, idParticipant):
+        return self.wapi_functions.promoteParticipantAdminGroup(idGroup,idParticipant)
+
+
+    def demote_participant_admin_group(self, idGroup, idParticipant):
+        return self.wapi_functions.demoteParticipantAdminGroup(idGroup,idParticipant)

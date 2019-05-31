@@ -40,7 +40,7 @@ Using Docker may also help in developing the library itself.
 This is based on the official Selenium image (https://github.com/SeleniumHQ/docker-selenium).
 The following Docker command runs a Selenium standalone Firefox browser in debug (VNC) mode. You can use VNC on port 5900 to view the browser. It uses the network "selenium" and the container is named "firefox" for later reference.
 
-    docker run -d -p 4444:4444 -p 5900:5900 --name firefox --network selenium -v /dev/shm:/dev/shm selenium/standalone-firefox-debug
+    docker run -d -p 4444:4444 -p 5900:5900 --name firefox --network selenium -v /dev/shm:/dev/shm selenium/standalone-firefox-debug:3.14.0-curium
 
 ### 3. Build python/webwhatsapi docker base image
 
@@ -111,7 +111,7 @@ Possible arguments for constructor:
     driver.send_message_to_id(id, message)
 
 ## Code Documentation
-http://mukulhase.github.io/WebWhatsapp-Wrapper/index.html
+https://webwhatsapi.readthedocs.io/en/latest/
 
 ## Limitation
 Phone needs to manually scan the QR Code from Whatsapp Web. Phone has to be on and connected to the internet.

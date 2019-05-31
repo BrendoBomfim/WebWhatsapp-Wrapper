@@ -16,6 +16,14 @@ class Contact(WhatsappObjectWithId):
         :param driver:
         :type driver: WhatsAPIDriver
         """
+
+        self.short_name = None
+        self.push_name = None
+        self.formatted_name = None
+        self.profile_pic = None
+        self.verified_name = None
+        self.is_business = False
+
         super(Contact, self).__init__(js_obj, driver)
         if 'shortName' in js_obj:
             self.short_name = js_obj["shortName"]
@@ -25,6 +33,9 @@ class Contact(WhatsappObjectWithId):
             self.formatted_name = js_obj["formattedName"]
         if 'profilePicThumbObj' in js_obj:
             self.profile_pic = js_obj["profilePicThumbObj"].get('eurl', None)
+        if 'verifiedName' in js_obj:
+            self.verified_name = js_obj["verifiedName"]
+            self.is_business = js_obj["isBusiness"]
 
     @driver_needed
     def get_common_groups(self):
@@ -44,7 +55,10 @@ class Contact(WhatsappObjectWithId):
         """
         name = (self.short_name or self.push_name or self.formatted_name)
         if (isinstance(name, string_types)):
-            safe_name = safe_str(name)
+            if self.is_business:
+                safe_name = self.verified_name
+            else:
+                safe_name = safe_str(name)
         else:
             safe_name = "Unknown"
         return safe_name
